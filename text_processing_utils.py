@@ -17,7 +17,7 @@ def tokenizer(
 
     def remove_token(x: List, token_list: List):
         for i in token_list:
-            if i in x:
+            while i in x:
                 x.remove(i)
         return x
 
