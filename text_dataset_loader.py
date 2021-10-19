@@ -24,4 +24,4 @@ def load_dataset() -> pd.DataFrame:
     ).reset_index(drop=True)
     dataset.poem_line = dataset.poem_line.apply(lambda x: x.replace('\n',''))
 
-    return dataset
+    return dataset.query('poem_line!=""')

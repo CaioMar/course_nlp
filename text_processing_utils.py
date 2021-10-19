@@ -6,7 +6,7 @@ import pandas as pd
 
 def tokenizer(
     dataset: pd.Series,
-    char_removal: str = '"!?,;^~´[]}{\/ªº#|:.*+-', 
+    char_removal: str = '"!?,;^~´[]}{)(\/ªº#|:.*+-', 
     to_lowercase: bool = True,
     stopwords: List[str] = []) -> pd.Series:
     
@@ -36,3 +36,19 @@ def tokenizer(
 
     return dataset
 
+def get_vocabulary(sequences: List[List[str]]) -> List[str]:
+    vocabulary = []
+    for sequence in sequences:
+        vocabulary += sequence
+    vocabulary = list(set(vocabulary))
+    vocabulary += ['NA']
+    return vocabulary
+
+def gen_index_sequence(x: List[str], vocabulary: List[str]) -> List[str]:
+    index_sequence = []
+    for i in x:
+        if i in vocabulary:
+            index_sequence.append(vocabulary.index(i))
+        else:
+            index_sequence.append(vocabulary.index('NA'))
+    return index_sequence
