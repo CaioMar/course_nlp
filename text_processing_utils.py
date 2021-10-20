@@ -7,20 +7,29 @@ from sklearn.base import TransformerMixin, BaseEstimator
 import pandas as pd
 
 class Tokenizer(BaseEstimator, TransformerMixin):
+    """
+    Custom Tokenizer that transforms a text column in a DataFrame into
+    lists of indexes that can be mapped into a vocabulary list that is
+    generated when fitting this transfromer into the dataset.
+    """
     
     def __init__(
-        self, 
-        document_column: str,
-        char_removal: str = '"!?,;^~´[]}{)(\/ªº#|:.*+-', 
-        to_lowercase: bool = True,
-        stopwords: List[str] = [],
-        missing_value: str = 'NA'
+            self,
+            document_column: str,
+            char_removal: str = '"!?,;^~´[]}{)(\/ªº#|:.*+-',
+            to_lowercase: bool = True,
+            stopwords: Optional[List[str]] = None,
+            missing_value: str = 'NA'
     ) -> None:
         self.char_removal = char_removal
         self.to_lowercase = to_lowercase
-        self.stopwords = stopwords
         self.document_column = document_column
         self.missing_value = missing_value
+        self.stopwords = stopwords
+        if not self.stopwords:
+                self.stopwords = []
+        self.vocabulary = []
+        self.vocab_size = 0
 
     @staticmethod
     def removal(x: str, remove_list: List):
@@ -53,8 +62,8 @@ class Tokenizer(BaseEstimator, TransformerMixin):
         return index_sequence
 
     def _tokenization(
-        self,
-        X: pd.Series,       
+            self,
+            X: pd.Series,       
     ) -> pd.Series:
 
         #lowercases all tokens
@@ -72,9 +81,10 @@ class Tokenizer(BaseEstimator, TransformerMixin):
 
         return X
     
-    def fit(self,
-        X: pd.DataFrame,
-        y: Optional[pd.Series] = None
+    def fit(
+            self,
+            X: pd.DataFrame,
+            y: Optional[pd.Series] = None
     ) -> 'Tokenizer':
         dataset = X[self.document_column].copy()
         dataset = self._tokenization(dataset)
@@ -82,16 +92,17 @@ class Tokenizer(BaseEstimator, TransformerMixin):
         self.vocab_size = len(self.vocabulary)
         return self
         
-    def transform(self,
-        X: pd.DataFrame
+    def transform(
+            self,
+            X: pd.DataFrame
     ) -> pd.DataFrame:
         dataset = X[self.document_column].copy()
         dataset = self._tokenization(dataset)
         dataset = dataset.apply(lambda x: self._gen_index_sequence(x, self.vocabulary))
         return dataset.to_frame()
 
-
-
-
-
-
+def revert_to_text(x: List[int], vocabulary: List[str]) -> List[str]:
+    """
+    Can be used to revert indexes to original vocabulary found in training set.
+    """
+    return [vocabulary[i] for i in x]
