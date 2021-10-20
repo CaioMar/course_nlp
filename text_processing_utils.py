@@ -84,7 +84,8 @@ class Tokenizer(BaseEstimator, TransformerMixin):
     def fit(
             self,
             X: pd.DataFrame,
-            y: Optional[pd.Series] = None
+            y: Optional[pd.Series] = None,
+            *args
     ) -> 'Tokenizer':
         dataset = X[self.document_column].copy()
         dataset = self._tokenization(dataset)
@@ -94,11 +95,14 @@ class Tokenizer(BaseEstimator, TransformerMixin):
         
     def transform(
             self,
-            X: pd.DataFrame
+            X: pd.DataFrame,
+            to_index: bool = True,
+            *args
     ) -> pd.DataFrame:
         dataset = X[self.document_column].copy()
         dataset = self._tokenization(dataset)
-        dataset = dataset.apply(lambda x: self._gen_index_sequence(x, self.vocabulary))
+        if to_index:
+            dataset = dataset.apply(lambda x: self._gen_index_sequence(x, self.vocabulary))
         return dataset.to_frame()
 
 def revert_to_text(x: List[int], vocabulary: List[str]) -> List[str]:
