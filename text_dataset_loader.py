@@ -20,7 +20,7 @@ def load_dataset() -> pd.DataFrame:
 
     dataset = pd.DataFrame(zip(edgar, ['edgar allan poe']*len(edgar)), columns=['poem_line', 'author'])
     dataset = dataset.append(
-        pd.DataFrame(zip(edgar, ['robert frost']*len(robert)), columns=['poem_line', 'author'])
+        pd.DataFrame(zip(robert, ['robert frost']*len(robert)), columns=['poem_line', 'author'])
     ).reset_index(drop=True)
     dataset.poem_line = dataset.poem_line.apply(lambda x: x.replace('\n',''))
 

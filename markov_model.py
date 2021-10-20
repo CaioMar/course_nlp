@@ -18,12 +18,13 @@ class MarkovModelClassifier:
         self.transition_matrices = dict()
         self.initial_state_dicts = dict()
         self.classes = []
+        self.priors = dict()
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> 'MarkovModelClassifier':
         dataset = X.copy()
         dataset['target'] = y
         self.classes = list(y.unique())
-
+        self.priors = y.value_counts(normalize=True).to_dict()
         number_of_sequences = y.size
 
         for class_ in self.classes:
@@ -64,7 +65,8 @@ class MarkovModelClassifier:
             self,
             sequence: List[int], 
             transition_matrix: np.ndarray, 
-            initial_state_distribution: np.ndarray
+            initial_state_distribution: np.ndarray,
+            prior: float
         ) -> float:
         
         if not len(sequence):
@@ -76,7 +78,7 @@ class MarkovModelClassifier:
             if i != len(sequence) - 1:
                 log_prob += transition_matrix[index][sequence[i+1]]
 
-        return log_prob
+        return log_prob + np.log(prior)
 
         
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
@@ -86,12 +88,13 @@ class MarkovModelClassifier:
             output.append(X[self.document_column].apply(
                 lambda x: self._sequence_log_probability(x, 
                     self.transition_matrices[class_], 
-                    self.initial_state_dicts[class_]
+                    self.initial_state_dicts[class_],
+                    self.priors[class_]
                     )
                 )
             )
 
-        output = np.dstack(output).reshape(-1, len(self.classes))
+        output = np.exp(np.dstack(output).reshape(-1, len(self.classes)))
 
         return output/output.sum(axis=1, keepdims=True)
 
