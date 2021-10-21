@@ -111,7 +111,6 @@ class MarkovModelGenerator:
     def __init__(
             self,
             document_column: str, 
-            vocabulary_size: int, 
             epsilon: float = 1.0
         ) -> None:
         """
@@ -119,57 +118,67 @@ class MarkovModelGenerator:
         a training set.
         """
         self.epsilon = epsilon
-        self.vocabulary_size = vocabulary_size
         self.document_column = document_column
-        self.transition_tensor = {}
-        self.initial_transition_matrix = {}
+        self.transition_tensor = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        self.initial_transition_matrix = defaultdict(lambda: defaultdict(int))
         self.initial_state_vector = defaultdict(int)
+        self.vocabulary = []
+        self.vocabulary_size = 0
         self.sequence = []
+
+    @staticmethod
+    def _get_vocabulary(sequences: List[List[str]]) -> List[str]:
+        vocabulary = []
+        for sequence in sequences:
+            vocabulary += sequence
+        vocabulary = list(set(vocabulary))
+        return vocabulary
 
     def fit(self, X: pd.DataFrame) -> 'MarkovModelGenerator':
 
         dataset = X.copy()
 
+        self.vocabulary = self._get_vocabulary(dataset)
+        self.vocabulary_size = len(self.vocabulary)
+
         number_of_sequences = X.shape[0]
 
         #Initizalization of Matrices
         token_vector = defaultdict(int)
-        token_matrix = dict()
+        token_matrix = defaultdict(lambda: defaultdict(int))
 
         #Counts
-        for indexes in dataset[self.document_column].tolist():
+        for tokens in dataset[self.document_column].tolist():
 
-            if len(indexes):
-                self.initial_state_vector[indexes[0]] += 1
-                if len(indexes) > 1:
-                    if indexes[0] not in token_vector.keys():
-                        token_vector
-                    token_vector[indexes[0]] += 1
-                    self.initial_transition_matrix[indexes[0]][indexes[1]]
+            if len(tokens):
+                self.initial_state_vector[tokens[0]] += 1
+                if len(tokens) > 1:
+                    token_vector[tokens[0]] += 1
+                    self.initial_transition_matrix[tokens[0]][tokens[1]] += 1
 
-            for i, index in enumerate(indexes):
-                if i < len(indexes) - 2:
-                    token_matrix[index][indexes[i+1]]
-                    self.transition_tensor[index][indexes[i+1]][indexes[i+2]] += 1
+            for i, token in enumerate(tokens):
+                if i < len(tokens) - 2:
+                    token_matrix[token][tokens[i+1]] += 1
+                    self.transition_tensor[token][tokens[i+1]][tokens[i+2]] += 1
 
         #Normalization
-        for start_state in range(self.vocabulary_size):
+        for start_state in self.initial_state_vector.keys():
             self.initial_state_vector[start_state] = (
                 (self.initial_state_vector[start_state] + self.epsilon)/(number_of_sequences + self.epsilon*self.vocabulary_size)
                 )
-            for fst_transition in range(self.vocabulary_size):
+
+        for start_state, fst_transition_dict in self.initial_transition_matrix.items():        
+            for fst_transition in fst_transition_dict.keys():
                 self.initial_transition_matrix[start_state][fst_transition] = (
                     (self.initial_transition_matrix[start_state][fst_transition] + self.epsilon)/(token_vector[start_state] + self.epsilon*self.vocabulary_size)
                 )
-                for end_state in range(self.vocabulary_size):
+
+        for start_state, fst_transition_dict in self.transition_tensor.items():        
+            for fst_transition, end_state_dict in fst_transition_dict.items():               
+                for end_state in end_state_dict.keys():
                     self.transition_tensor[start_state][fst_transition][end_state] = (
                         (self.transition_tensor[start_state][fst_transition][end_state] + self.epsilon)/(token_matrix[start_state][fst_transition] + self.epsilon*self.vocabulary_size)
                     )
-        
-        #Converts to log probs
-        self.transition_tensor = self.transition_tensor
-        self.initial_transition_matrix = self.initial_transition_matrix
-        self.initial_state_vector = self.initial_state_vector
         
         return self
 
@@ -177,9 +186,32 @@ class MarkovModelGenerator:
             self,
             number_of_samples: int = 1,
             sequence: Optional[List[int]] = None,
-        ) -> float:
+        ) -> str:
         
         if sequence:
             self.sequence = sequence
 
-        pass
+        for _ in range(number_of_samples):
+
+            transition = dict()
+            if not len(self.sequence):
+                transition = self.initial_state_vector
+            elif len(self.sequence) == 1:
+                transition = self.initial_transition_matrix[self.sequence[0]]
+            else:
+                transition = self.transition_tensor[self.sequence[-2]][self.sequence[-1]]
+
+            remaining_words = list(set(self.vocabulary) - set(transition.keys()))
+            a = list(transition.keys()) + remaining_words
+            p_tmp = list(transition.values())
+            remaining_words_prob = (1-sum(p_tmp))/len(remaining_words)
+            p = p_tmp + [remaining_words_prob]*len(remaining_words)
+
+            self.sequence.append(
+                np.random.choice(
+                    a,
+                    p=p
+                )
+            )            
+
+        return " ".join(self.sequence)
