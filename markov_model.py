@@ -124,7 +124,7 @@ class MarkovModelGenerator:
         self.initial_state_vector = defaultdict(int)
         self.vocabulary = []
         self.vocabulary_size = 0
-        self.sequence = []
+        self.poem = []
 
     @staticmethod
     def _get_vocabulary(sequences: List[List[str]]) -> List[str]:
@@ -155,11 +155,17 @@ class MarkovModelGenerator:
                 if len(tokens) > 1:
                     token_vector[tokens[0]] += 1
                     self.initial_transition_matrix[tokens[0]][tokens[1]] += 1
+                elif len(tokens) == 1:
+                    token_vector[tokens[0]] += 1
+                    self.initial_transition_matrix[tokens[0]]['\n'] += 1
 
             for i, token in enumerate(tokens):
                 if i < len(tokens) - 2:
                     token_matrix[token][tokens[i+1]] += 1
                     self.transition_tensor[token][tokens[i+1]][tokens[i+2]] += 1
+                elif i == len(tokens) - 2:
+                    token_matrix[token][tokens[i+1]] += 1
+                    self.transition_tensor[token][tokens[i+1]]['\n'] += 1
 
         #Normalization
         for start_state in self.initial_state_vector.keys():
@@ -184,36 +190,42 @@ class MarkovModelGenerator:
 
     def sample(
             self,
-            number_of_samples: int = 1,
-            sequence: Optional[List[int]] = None,
+            number_of_verses: int = 10,
         ) -> str:
         
-        if sequence:
-            self.sequence = sequence
+        self.poem = []
+        for _ in range(number_of_verses):
+            self.poem.append([])
 
-        for _ in range(number_of_samples):
+        for i in range(number_of_verses):
+            
+            while True:
+                transition = dict()
+                if len(self.poem[i]) == 0:
+                    transition = self.initial_state_vector
+                elif len(self.poem[i]) == 1:
+                    transition = self.initial_transition_matrix[self.poem[i][0]]
+                else:
+                    transition = self.transition_tensor[self.poem[i][-2]][self.poem[i][-1]]
+                
+                remaining_words = list(set(self.vocabulary) - set(transition.keys()))
+                a = list(transition.keys()) + remaining_words
+                p_tmp = list(transition.values())
+                remaining_words_prob = (1-sum(p_tmp))/len(remaining_words)
+                #print(len(a), len(remaining_words), remaining_words_prob, sum(p_tmp))
+                p = p_tmp + [remaining_words_prob]*len(remaining_words)
+                #print(sum(p))
 
-            transition = dict()
-            if not len(self.sequence):
-                transition = self.initial_state_vector
-            elif len(self.sequence) == 1:
-                transition = self.initial_transition_matrix[self.sequence[0]]
-            else:
-                transition = self.transition_tensor[self.sequence[-2]][self.sequence[-1]]
-
-            remaining_words = list(set(self.vocabulary) - set(transition.keys()))
-            a = list(transition.keys()) + remaining_words
-            p_tmp = list(transition.values())
-            remaining_words_prob = (1-sum(p_tmp))/len(remaining_words)
-            #print(len(a), len(remaining_words), remaining_words_prob, sum(p_tmp))
-            p = p_tmp + [remaining_words_prob]*len(remaining_words)
-            #print(sum(p))
-
-            self.sequence.append(
-                np.random.choice(
+                new_word = np.random.choice(
                     a,
                     p=p
                 )
-            )            
 
-        return " ".join(self.sequence)
+                if new_word == '\n':
+                    break
+                
+                self.poem[i].append(new_word)
+                
+            self.poem[i] = " ".join(self.poem[i])
+
+        return "\n".join(self.poem)
