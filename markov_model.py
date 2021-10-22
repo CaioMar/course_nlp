@@ -138,7 +138,7 @@ class MarkovModelGenerator:
 
         dataset = X.copy()
 
-        self.vocabulary = self._get_vocabulary(dataset)
+        self.vocabulary = self._get_vocabulary(dataset[self.document_column])
         self.vocabulary_size = len(self.vocabulary)
 
         number_of_sequences = X.shape[0]
@@ -205,7 +205,9 @@ class MarkovModelGenerator:
             a = list(transition.keys()) + remaining_words
             p_tmp = list(transition.values())
             remaining_words_prob = (1-sum(p_tmp))/len(remaining_words)
+            #print(len(a), len(remaining_words), remaining_words_prob, sum(p_tmp))
             p = p_tmp + [remaining_words_prob]*len(remaining_words)
+            #print(sum(p))
 
             self.sequence.append(
                 np.random.choice(
